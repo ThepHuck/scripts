@@ -1,18 +1,19 @@
 # Requires -Modules VMware.PowerCLI
 
-#$vCenter = Read-Host -Prompt "Enter vCenter Server Name or IP"
-#$creds = Get-Credential -Message "Enter credentials for vCenter Server $vCenter"
-
-$vCenter = "vc01.thephuck.lab"
-$user = "administrator@thephuck.lab"
-$password = "VMware1!VMware1!"
-$password = ConvertTo-SecureString -String $password -AsPlainText -Force
-$creds = New-Object System.Management.Automation.PSCredential($user,$password)
+$vCenter = Read-Host -Prompt "Enter vCenter Server Name or IP"
+$creds = Get-Credential -Message "Enter credentials for vCenter Server $vCenter"
 
 Write-Host "Connecting to vCenter: $vCenter..." -ForegroundColor Cyan
 Connect-VIServer -Server $vCenter -Credential $creds -ErrorAction Stop
 
-$results = @()
+$endTime = (Get-Date).AddHours(6)
+$csvPath = "c:\scripts\nvme-temps-$(Get-Date -Format 'yyyyMMdd-HHmmss').csv"
+Write-Host "`nStarting 6-hour NVMe temperature sampling loop. Output: $csvPath" -ForegroundColor Cyan
+
+while ((Get-Date) -lt $endTime) {
+    $loopStart = Get-Date
+    Write-Host "`n--- Sampling at $loopStart ---" -ForegroundColor Cyan
+    $results = @()
 
 # Iterate over all clusters and their connected hosts
 foreach ($cluster in Get-Cluster) {
@@ -108,6 +109,7 @@ foreach ($cluster in Get-Cluster) {
                     }
 
                     $results += [PSCustomObject]@{
+                        Timestamp           = $loopStart.ToString("yyyy-MM-dd HH:mm:ss")
                         Cluster             = $cluster.Name
                         Host                = $vmHost.Name
                         NVMeAdapter         = $device.HBAName
@@ -125,8 +127,21 @@ foreach ($cluster in Get-Cluster) {
     }
 }
 
-Write-Host "`nDisconnecting from vCenter..." -ForegroundColor Cyan
+    if ($results) {
+        $results | Export-Csv -Path $csvPath -NoTypeInformation -Append
+        Write-Host "`nNVMe Temperature Report:" -ForegroundColor Green
+        $results | Format-Table -AutoSize
+    }
+    
+    $elapsed = ((Get-Date) - $loopStart).TotalSeconds
+    $sleepTime = 60 - $elapsed
+    if ($sleepTime -gt 0) {
+        Write-Host "Sleeping for $([math]::Round($sleepTime)) seconds... (Press Ctrl+C to cancel)" -ForegroundColor DarkGray
+        Start-Sleep -Seconds $sleepTime
+    }
+}
+
+Write-Host "`n6-hour sampling complete. Disconnecting from vCenter..." -ForegroundColor Cyan
 Disconnect-VIServer -Server $vCenter -Confirm:$false -Force -ErrorAction SilentlyContinue
 
-Write-Host "`nNVMe Temperature Report:" -ForegroundColor Green
-$results | Format-Table -AutoSize
+Write-Host "`nNVMe Temperature Report saved to: $csvPath" -ForegroundColor Green
