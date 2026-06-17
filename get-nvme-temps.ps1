@@ -1,5 +1,9 @@
 # Requires -Modules VMware.PowerCLI
 
+param (
+    [switch]$csv
+)
+
 $vCenter = Read-Host -Prompt "Enter vCenter Server Name or IP"
 $creds = Get-Credential -Message "Enter credentials for vCenter Server $vCenter"
 
@@ -7,8 +11,12 @@ Write-Host "Connecting to vCenter: $vCenter..." -ForegroundColor Cyan
 Connect-VIServer -Server $vCenter -Credential $creds -ErrorAction Stop
 
 $endTime = (Get-Date).AddHours(6)
-$csvPath = "c:\scripts\nvme-temps-$(Get-Date -Format 'yyyyMMdd-HHmmss').csv"
-Write-Host "`nStarting 6-hour NVMe temperature sampling loop. Output: $csvPath" -ForegroundColor Cyan
+if ($csv) {
+    $csvPath = "c:\scripts\nvme-temps-$(Get-Date -Format 'yyyyMMdd-HHmmss').csv"
+    Write-Host "`nStarting 6-hour NVMe temperature sampling loop. Output: $csvPath" -ForegroundColor Cyan
+} else {
+    Write-Host "`nStarting 6-hour NVMe temperature sampling loop." -ForegroundColor Cyan
+}
 
 while ((Get-Date) -lt $endTime) {
     $loopStart = Get-Date
@@ -128,7 +136,9 @@ foreach ($cluster in Get-Cluster) {
 }
 
     if ($results) {
-        $results | Export-Csv -Path $csvPath -NoTypeInformation -Append
+        if ($csv) {
+            $results | Export-Csv -Path $csvPath -NoTypeInformation -Append
+        }
         Write-Host "`nNVMe Temperature Report:" -ForegroundColor Green
         $results | Format-Table -AutoSize
     }
@@ -144,4 +154,6 @@ foreach ($cluster in Get-Cluster) {
 Write-Host "`n6-hour sampling complete. Disconnecting from vCenter..." -ForegroundColor Cyan
 Disconnect-VIServer -Server $vCenter -Confirm:$false -Force -ErrorAction SilentlyContinue
 
-Write-Host "`nNVMe Temperature Report saved to: $csvPath" -ForegroundColor Green
+if ($csv) {
+    Write-Host "`nNVMe Temperature Report saved to: $csvPath" -ForegroundColor Green
+}

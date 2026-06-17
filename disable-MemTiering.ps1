@@ -1,14 +1,14 @@
 # Requires -Modules VMware.PowerCLI
 
-$vCenter = Read-Host -Prompt "Enter vCenter Server Name or IP"
-$creds = Get-Credential -Message "Enter credentials for vCenter Server $vCenter"
+#$vCenter = Read-Host -Prompt "Enter vCenter Server Name or IP"
+#$creds = Get-Credential -Message "Enter credentials for vCenter Server $vCenter"
 
-Write-Host "Connecting to vCenter: $vCenter..." -ForegroundColor Cyan
-Connect-VIServer -Server $vCenter -Credential $creds -ErrorAction Stop
+#Write-Host "Connecting to vCenter: $vCenter..." -ForegroundColor Cyan
+#Connect-VIServer -Server $vCenter -Credential $creds -ErrorAction Stop
 
 $vmHosts = Get-VMHost | Where-Object { $_.ConnectionState -eq 'Connected' }
 
-foreach ($vmHost in $vmHosts) {S
+foreach ($vmHost in $vmHosts) {
     Write-Host "Setting MemoryTiering to FALSE on host: $($vmHost.Name)..." -ForegroundColor Cyan
     
     try {
