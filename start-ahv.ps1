@@ -39,8 +39,8 @@ if ($hostsToReboot.Count -gt 0) {
         Disconnect-VIServer -Server $h -Confirm:$false -Force -ErrorAction SilentlyContinue
     }
 
-    Write-Host -fore Cyan "`nWaiting 60 seconds before monitoring reboots..."
-    Start-Sleep -Seconds 60
+    Write-Host -fore Cyan "`nWaiting 30 seconds before monitoring reboots..."
+    Start-Sleep -Seconds 30
 
     $pendingHosts = $hostsToReboot | select -Unique
     while ($pendingHosts.Count -gt 0) {
