@@ -1,3 +1,4 @@
 lab-connect.ps1
 add-vm-disks.ps1
 wipe-partitions.ps1
+mount-synology.ps1
