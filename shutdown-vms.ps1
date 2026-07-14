@@ -1,24 +1,16 @@
 # Requires -Modules VMware.PowerCLI
-
-$vCenterFQDN = Read-Host -Prompt "Enter vCenter FQDN or IP"
-$credentials = Get-Credential -Message "Enter vCenter Credentials"
+$vmhosts = @("cougar.thephuck.lab","mach-e.thephuck.lab","f250.thephuck.lab","mustang.thephuck.lab")
 $hostCredentials = Get-Credential -Message "Enter ESXi Host Root Credentials"
 
+$ignoreVMs = @("metrics-aggregator*","harbor*","auto-attach*","cci-ns-controller-manager*","configuration-service-controller-manager*")
+
 try {
-    Write-Host "Connecting to vCenter: $vCenterFQDN..." -fore Cyan
-    Connect-VIServer -Server $vCenterFQDN -Credential $credentials -ErrorAction Stop
-
-    Write-Host "Fetching ESXi hosts from vCenter..." -fore Cyan
-    $vmHosts = @(Get-VMHost | Select-Object -ExpandProperty Name)
-    
-    Write-Host "Disconnecting from vCenter ($vCenterFQDN)..." -fore Cyan
-    Disconnect-VIServer -Server $vCenterFQDN -Confirm:$false -Force
-
     Write-Host "Connecting directly to ESXi hosts..." -fore Cyan
     Connect-VIServer -Server $vmHosts -Credential $hostCredentials -ErrorAction Stop
 
     Write-Host "Fetching all powered on VMs..." -fore Cyan
-    $poweredOnVMs = @(Get-VM | ?{$_.PowerState -eq 'PoweredOn' })
+    $ignorePattern = ($ignoreVMs -join '|') -replace '\*', '.*'
+    $poweredOnVMs = @(Get-VM | Where-Object { $_.PowerState -eq 'PoweredOn' -and $_.Name -notmatch $ignorePattern })
 
     if ($poweredOnVMs.Count -eq 0) {
         Write-Host "No powered on VMs found." -fore Green
@@ -33,15 +25,9 @@ try {
         $pendingVMs = $poweredOnVMs
         while ($pendingVMs.Count -gt 0) {
             Write-Host "Monitoring... $($pendingVMs.Count) VM(s) are still powered on." -fore Yellow
-            
-            $nonNsxahvVKSVms = @($pendingVMs | ?{$_.Name -notmatch 'ahv|cci|harbor|vks' })
-            if ($nonNsxahvVKSVms.Count -eq 0) {
-                Write-Host "Only AHV,NSX, or VKS VMs remain. Forcefully powering them off..." -fore Cyan
-                $pendingVMs | Stop-VM -Confirm:$false -ErrorAction SilentlyContinue
-            }
 
             Start-Sleep -Seconds 10
-            $pendingVMs = @(Get-VM -Id $poweredOnVMs.Id | ?{$_.PowerState -eq 'PoweredOn' })
+            $pendingVMs = @(Get-VM -Id $poweredOnVMs.Id | Where-Object { $_.PowerState -eq 'PoweredOn' })
         }
         
         Write-Host "All VMs have been successfully powered off." -fore Green
