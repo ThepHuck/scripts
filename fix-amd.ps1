@@ -12,7 +12,7 @@ foreach ($i in $vmhosts){
     $esxcli = get-esxcli -v2
     $entropyArgs = $esxcli.system.settings.kernel.set.CreateArgs()
     $entropyArgs.setting = "entropySources"
-    $entropyArgs.value = 1
+    $entropyArgs.value = 2
     $esxcli.system.settings.kernel.set.Invoke($entropyArgs)
 
     write-host -fore green `n`t "Enabling & starting SSH"
